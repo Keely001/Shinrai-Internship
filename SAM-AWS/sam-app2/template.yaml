@@ -1,0 +1,41 @@
+AWSTemplateFormatVersion: '2010-09-09'  # CloudFormation template version
+
+Transform: AWS::Serverless-2016-10-31   # Use AWS SAM Transform for simplified syntax
+
+Description: Lambda + SNS + API Gateway example
+
+Globals:
+  Function:
+    Timeout: 10                          # Default timeout for Lambda functions (in seconds)
+    Runtime: python3.13                   # Runtime for all Lambda functions
+
+Resources:
+
+  MySNSTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: AgeBasedWelcomeTopic    # SNS topic used for sending email notifications
+
+  AgeHandlerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: app.lambda_handler    # Lambda entry point: src/app.py → lambda_handler function
+      CodeUri: src/                      # Folder containing Lambda code
+      Events:
+        ApiTrigger:
+          Type: Api                      # Trigger the Lambda via API Gateway
+          Properties:
+            Path: /submit                # API Gateway path: POST /submit
+            Method: post
+      Environment:
+        Variables:
+          SNS_TOPIC_ARN: !Ref MySNSTopic # Pass SNS topic ARN to Lambda as environment variable
+      Policies:
+        - SNSPublishMessagePolicy:
+            TopicName: AgeBasedWelcomeTopic  # Give Lambda permission to publish to SNS topic
+
+Outputs:
+  ApiEndpoint:
+    Description: "API Gateway endpoint URL"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/submit"
+    # This exports the full URL of the deployed API endpoint
