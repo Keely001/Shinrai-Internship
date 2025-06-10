@@ -1,41 +1,86 @@
-AWSTemplateFormatVersion: '2010-09-09'  # CloudFormation template version
+AWSTemplateFormatVersion: '2010-09-09' # CloudFormation template version
 
-Transform: AWS::Serverless-2016-10-31   # Use AWS SAM Transform for simplified syntax
+Transform: AWS::Serverless-2016-10-31 # Use AWS SAM Transform for simplified syntax
 
-Description: Lambda + SNS + API Gateway example
+Description: Lambda + SNS + API Gateway example with CloudWatch Alarm on Errors
 
 Globals:
   Function:
-    Timeout: 10                          # Default timeout for Lambda functions (in seconds)
-    Runtime: python3.13                   # Runtime for all Lambda functions
+    Timeout: 10 # Default timeout for Lambda functions (in seconds)
+    Runtime: python3.13 # Runtime for all Lambda functions
 
 Resources:
 
+  # SNS Topic for Email Notifications
   MySNSTopic:
     Type: AWS::SNS::Topic
     Properties:
-      TopicName: AgeBasedWelcomeTopic    # SNS topic used for sending email notifications
+      TopicName: AgeBasedWelcomeTopic
 
+  # CloudWatch Log Group for Lambda
+  AgeHandlerLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /aws/lambda/AgeHandlerFunction
+      RetentionInDays: 7
+
+  # SNS Topic for Alarm Notifications
+  LambdaAlarmTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: LambdaErrorAlarmTopic
+
+  # Lambda Function
   AgeHandlerFunction:
     Type: AWS::Serverless::Function
     Properties:
-      Handler: app.lambda_handler    # Lambda entry point: src/app.py → lambda_handler function
-      CodeUri: src/                      # Folder containing Lambda code
+      FunctionName: AgeHandlerFunction
+      Handler: app.lambda_handler
+      CodeUri: src/
       Events:
         ApiTrigger:
-          Type: Api                      # Trigger the Lambda via API Gateway
+          Type: Api
           Properties:
-            Path: /submit                # API Gateway path: POST /submit
+            Path: /submit
             Method: post
       Environment:
         Variables:
-          SNS_TOPIC_ARN: !Ref MySNSTopic # Pass SNS topic ARN to Lambda as environment variable
+          SNS_TOPIC_ARN: !Ref MySNSTopic
+          SNS_ALARM_TOPIC_ARN: !Ref LambdaAlarmTopic
       Policies:
         - SNSPublishMessagePolicy:
-            TopicName: AgeBasedWelcomeTopic  # Give Lambda permission to publish to SNS topic
+            TopicName: AgeBasedWelcomeTopic
+        - SNSPublishMessagePolicy:
+            TopicName: LambdaErrorAlarmTopic
+        - Statement:
+            - Effect: Allow
+              Action:
+                - logs:CreateLogGroup
+                - logs:CreateLogStream
+                - logs:PutLogEvents
+              Resource: '*'
+
+  # CloudWatch Alarm for Lambda Errors
+  LambdaErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: LambdaErrorAlarm
+      AlarmDescription: Triggers if AgeHandlerFunction returns any error
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref AgeHandlerFunction
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref LambdaAlarmTopic
 
 Outputs:
   ApiEndpoint:
-    Description: "API Gateway endpoint URL"
-    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/submit"
-    # This exports the full URL of the deployed API endpoint
+    Description: API Gateway endpoint URL
+    Value: !Sub https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/submit
