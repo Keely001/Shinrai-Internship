@@ -1,0 +1,51 @@
+# Byte-compiled / Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+
+# Virtual environments
+.env/
+venv/
+ENV/
+.venv/
+env/
+
+# SAM build artifacts
+.aws-sam/
+.aws/
+
+# AWS credentials or config (never push these!)
+*.pem
+*.key
+*.env
+*.secret
+*.credentials
+
+# IDE/editor folders
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# macOS and Windows system files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Test coverage reports
+htmlcov/
+coverage.xml
+.cache/
+.tox/
+
+# Python packaging
+dist/
+build/
+*.egg-info/
+
+# SAM/CloudFormation template exports
+samconfig.toml  # optional: only if it contains environment-specific secrets
