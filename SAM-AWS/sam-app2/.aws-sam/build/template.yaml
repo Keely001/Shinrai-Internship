@@ -35,13 +35,9 @@ Resources:
         Variables:
           SNS_TOPIC_ARN:
             Ref: MySNSTopic
-          SNS_ALARM_TOPIC_ARN:
-            Ref: LambdaAlarmTopic
       Policies:
       - SNSPublishMessagePolicy:
           TopicName: AgeBasedWelcomeTopic
-      - SNSPublishMessagePolicy:
-          TopicName: LambdaErrorAlarmTopic
       - Statement:
         - Effect: Allow
           Action:

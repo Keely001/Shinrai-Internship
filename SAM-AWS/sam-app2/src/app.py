@@ -52,13 +52,6 @@ def lambda_handler(event, context):
         }
 
     except Exception as e:
-        # Send custom error message to same SNS topic
-        error_message = f"🚨An Itsy bitsy error on the server side occured:\n\nName: {name}\nAge: {age}\nGender: {gender}\n\n\n"
-        sns.publish(
-            TopicArn=TOPIC_ARN,
-            Subject='Server Error',
-            Message=error_message
-        )
 
         return {
             "statusCode": 500,
