@@ -1,0 +1,74 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Simple S3-triggered Textract processor
+
+Resources:
+  # Source bucket where you upload images
+  SourceBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: textract-source-bucket-${ACCOUNT_ID}
+
+  # Destination bucket for Textract results
+  ResultsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: textract-results-bucket${ACCOUNT_ID}
+
+  # SNS Topic for notifications
+  TextractNotificationTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: TextractCompletionNotifications
+      TopicName: TextractCompletionTopic
+
+  # Lambda function that does the processing of the uploaded images
+  TextractProcessor:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: textract_processor/
+      Handler: app.lambda_handler
+      Runtime: python3.13
+      Timeout: 900 #max timeout
+      MemorySize: 1024
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - textract:DetectDocumentText
+              Resource: '*'
+            - Effect: Allow
+              Action:
+                - s3:GetObject
+              Resource: !Sub arn:aws:s3:::${SourceBucket}/*
+            - Effect: Allow
+              Action:
+                - s3:PutObject
+              Resource: !Sub arn:aws:s3:::${ResultsBucket}/*
+            - Effect: Allow
+              Action:
+                - sns:Publish
+              Resource: !Ref TextractNotificationTopic
+      Events:
+        S3Trigger:
+          Type: S3
+          Properties:
+            Bucket: !Ref SourceBucket
+            Events: s3:ObjectCreated:*
+
+      Environment:
+        Variables:
+          RESULTS_BUCKET: !Ref ResultsBucket
+          SNS_TOPIC_ARN: !Ref TextractNotificationTopic
+
+Outputs:
+  SourceBucketName:
+    Description: Name of the bucket to upload images to
+    Value: !Ref SourceBucket
+  ResultsBucketName:
+    Description: Name of the bucket where results will be stored
+    Value: !Ref ResultsBucket
+  SNSTopicArn:
+    Description: ARN of the SNS topic for notifications
+    Value: !Ref TextractNotificationTopic
